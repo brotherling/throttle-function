@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<style>
+    div{
+        width: 500px;
+        height: 1000px;
+        background-color: #ccc;
+    }
+</style>
+<body>
+    <div>你好</div>
+</body>
+<script>
+    //在每个异步任务时间不确定的情况下,保证顺序输出
+    function getFile(file) {
+        fakeAjax(file, function (text) {
+            fileReceived(file, text)
+        })
+    } 
+    function fileReceived(file, text) {
+        if (!responses[file]) {
+            responses[file] = text
+        }
+
+        const files = ['file1', 'file2', 'file3']
+
+        for (let i = 0; i < files.length; i++) {
+            if (files[i] in responses) {
+                if (responses[files[i]] !== true) {
+                    output(responses[files[i]])
+                    responses[files[i]] = true
+                }
+            } else {
+                return false
+            }
+        }
+        output('Complete!')
+    } 
+    const responses = {}
+    getFile('file1')
+    getFile('file2')
+    getFile('file3') 
+    //防抖函数(debounce) 指某个函数在某段时间内,无论触发多少次回调,都只触发一次,执行最后一次
+    //原理: 函数第一次执行时设定一个定时器,之后调用时候发现已经设定过的定时器就清空之前的定时器,并重新设定一个定时器.
+    //      如果存在没有被清空的定时器,当定时器结束时就执行函数
+    //应用: input输入事件,只有在完全输完后才执行
+    // fn是需要防抖处理的函数
+    // wait是等待的时间
+    function debounce(fn, wait){
+        //闭包缓存一个定时器的id
+        let timer = null
+        return function(...args){     // ...args是剩余参数法,可以让我们把不定数量的参数表示为一个数组传入
+            //如果已经设定过定时器,就清空上一次定时器
+            if(timer) clearTimeout(timer)
+            //开始设定一个新的定时器,定时器走完后执行函数
+            timer = setTimeout(() => {
+                fn.apply(this, args)
+            }, wait)
+        }
+    }
+    const betterFn = debounce(() => console.log('fn执行了'), 1000)
+    //当滚动停止1s后才会执行函数
+    //document.addEventListener('scroll',betterFn,false)
+
+    // 2. 想要第一次也触发函数
+    // 加一个flag就可以了  
+    // immediate 判断事件触发时是否立即执行一次
+    function debounceFirst(fn, wait, immediate){
+        let timer = null
+        return function(...args){
+            if(timer) clearTimeout(timer)
+            //是否第一次触发执行
+            if(immediate && !timer){
+                fn.apply(this, args)
+            }
+            timer = setTimeout(() => {
+                fn.apply(this, args)
+            }, wait)
+        }
+    }
+    const firstFn = debounceFirst(() => console.log('fn执行喽'), 1000, true) 
+    // 第一次滚动触发一次,滚动停止1s后触发一次
+    //document.addEventListener('scroll',firstFn, false)
+
+
+    //节流函数  不管怎么触发只有到达一定时间间隔才执行
+    //应用:滚动事件
+    function throttle(fn, wait){
+        //记录上次时间
+        let previous = 0
+        return function(...args){
+            //获取现在时间,转换成时间戳
+            let now = +new Date()
+            if(now - previous > wait){
+                previous = now
+                fn.apply(this, args)
+            }
+        }
+    }
+    const throttleFn = throttle(() => console.log('fn执行'), 2000)
+    //第一次执行,滚动期间隔两秒执行一次
+    document.addEventListener('scroll', throttleFn,false)
+
+
+    //需求分析: 如果用防抖函数,用户如果操作非常频繁,定时器也会频繁的清楚生成,,函数fn就一直没法执行,用户就一直得不到反馈
+    //解决: 结合节流和防抖思想来解决,
+    //思路: 逻辑就是在当前触发时间和上次触发的时间差小于时间间隔时,设立一个新的定时器,把debounce代码放在这个判断里 
+    function better(fn, wait){
+        let timer = null, previous = 0
+        return function(...args){
+            let now = +new Date()
+            if(now - previous < wait){
+                if(timer) clearTimeout(timer)
+                timer = setTimeout(() => {
+                    fn.apply(this, args)
+                }, wait);
+            }else{
+                previous = now
+                fn.apply(this, args)
+            }
+        }
+    }
+    const fn = better(() => console.log('fn触发'),2000)
+    //第一次就执行,滚动期间2s执行一次,滚动结束2s后执行一次
+    //时间间隔内触发会执行两次
+    document.addEventListener('scroll',fn,false)
+</script>
+
+</html>
